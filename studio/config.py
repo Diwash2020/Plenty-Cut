@@ -56,7 +56,9 @@ def _read_secret(var: str, file_var: str, pattern: str) -> str:
 
 
 # ---------------------------------------------------------------- where things live
-DATA_DIR = Path(env("PLENTYCUT_DATA") or ROOT / "data")
+# On Vercel the code directory is read-only and only /tmp can be written, so data lives there when Vercel runs
+# the app (VERCEL=1 is set by Vercel itself). Anywhere else, data stays next to the code as before.
+DATA_DIR = Path(env("PLENTYCUT_DATA") or (Path("/tmp/plentycut-data") if env("VERCEL") else ROOT / "data"))
 USERS_DIR = DATA_DIR / "users"          # users/<user id>/{creators,jobs,accounts}
 MODELS_DIR = Path(env("PLENTYCUT_MODELS") or DATA_DIR / "models")
 TMP_DIR = DATA_DIR / "tmp"
@@ -70,7 +72,10 @@ ASR_MODEL_DIR = MODELS_DIR / ASR_MODEL_NAME
 DATABASE_URL = env("DATABASE_URL") or f"sqlite:///{(DATA_DIR / 'plentycut.db').as_posix()}"
 
 for d in (USERS_DIR, MODELS_DIR, TMP_DIR, FONTS_DIR):
-    d.mkdir(parents=True, exist_ok=True)
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass    # a read-only filesystem must not stop the app from starting
 
 
 def user_dir(uid: str) -> Path:
